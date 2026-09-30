@@ -165,12 +165,15 @@ In development, send `/api` to your server so cookies are same-site:
 // web/vite.config.js
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { '/api': 'http://localhost:3000' } },
+  // changeOrigin: false keeps the browser's Host (localhost:5173). Vite's string shorthand
+  // ('/api': 'http://localhost:3000') rewrites it to localhost:3000, which breaks the OAuth callback URL.
+  server: { proxy: { '/api': { target: 'http://localhost:3000', changeOrigin: false } } },
 });
 ```
 
 Then set `VOULT_APP_URL=http://localhost:5173` in the server's `.env`, so OAuth sends users back to the
-frontend.
+frontend, and add `http://localhost:5173/api/auth/oauth/callback` under **Callback URLs** (the server
+builds the callback from the host the browser used).
 
 ```jsx
 // web/src/App.jsx
