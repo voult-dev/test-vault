@@ -5,7 +5,7 @@
   "scripts": {
     "start": "node --env-file=.env server.js",
     "dev": "node --watch --env-file=.env server.js",
-    "doctor": "voult doctor"
+    "doctor": "voult doctor --callback-url http://localhost:5173/api/auth/oauth/callback"
   },
   "keywords": [],
   "author": "",
