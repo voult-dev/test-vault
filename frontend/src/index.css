@@ -10,3 +10,4 @@ button { cursor: pointer; }
 .ok { color: #16a34a; }
 .err { color: #dc2626; }
 pre { background: #8881; padding: .75rem; border-radius: 6px; }
+.cap { text-transform: capitalize; }

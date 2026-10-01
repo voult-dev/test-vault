@@ -16,6 +16,18 @@ async function api(path, { method = 'GET', body } = {}) {
   return data;
 }
 
+// Read the OAuth redirect result once, then drop ?voult_* from the URL so a reload doesn't show it again.
+const oauthResult = getOAuthRedirectResult();
+if (/[?&]voult_/.test(location.search)) history.replaceState(null, '', '/');
+
+const OAUTH_ERRORS = {
+  access_denied: 'Sign-in was cancelled, so you are not signed in. Try again whenever you are ready.',
+  INVALID_OAUTH_STATE: 'That sign-in expired or was started in another tab. Please try again.',
+  LOGIN_REQUIRED: 'Sign in before linking another account.',
+};
+const oauthErrorMessage = (error) =>
+  error && (OAUTH_ERRORS[error.code] || error.description || 'Sign-in failed. Please try again.');
+
 const formData = (e) => Object.fromEntries(new FormData(e.target));
 
 function useSubmit() {
@@ -37,7 +49,7 @@ function SignIn() {
   const { signIn, signUp } = useVoult();
   const { providers } = useOAuthProviders();
   const [mode, setMode] = useState('signin');
-  const oauthError = getOAuthRedirectResult().error?.description;
+  const oauthError = oauthErrorMessage(oauthResult.error);
   const [run, note] = useSubmit();
 
   const submit = run(async ({ email, password, fullName }) => {
@@ -81,6 +93,8 @@ function SignIn() {
 function MfaPrompt() {
   const { verifyMfa, signOut } = useVoult();
   const [run, note] = useSubmit();
+  // Clears the pending cookie (OAuth) and the in-memory token (password); /logout 401s with no session yet.
+  const cancel = () => api('/api/mfa/cancel', { method: 'POST' }).finally(() => signOut().catch(() => {}));
   return (
     <section>
       <h1>Two-factor authentication</h1>
@@ -89,7 +103,7 @@ function MfaPrompt() {
         <button>Verify</button>
       </form>
       {note}
-      <button className="link" onClick={signOut}>Cancel</button>
+      <button className="link" onClick={cancel}>Cancel</button>
     </section>
   );
 }
@@ -164,11 +178,44 @@ function Sessions() {
   );
 }
 
+function LinkedAccounts() {
+  const { providers } = useOAuthProviders();
+  const [linked, setLinked] = useState([]);
+  const [msg, setMsg] = useState(
+    oauthResult.linked ? { ok: true, text: `Linked ${oauthResult.linked}.` }
+      : oauthResult.error ? { ok: false, text: oauthErrorMessage(oauthResult.error) } : null
+  );
+  // Voult returns provider names or { provider, … } objects depending on version.
+  const load = () => api('/api/oauth/linked')
+    .then((d) => setLinked(d.providers.map((p) => (typeof p === 'string' ? p : p.provider))))
+    .catch(() => {});
+  useEffect(() => { load(); }, []);
+
+  const unlink = (p) => api(`/api/oauth/linked/${p}`, { method: 'DELETE' })
+    .then(() => { setMsg({ ok: true, text: `Unlinked ${p}.` }); load(); })
+    .catch((err) => setMsg({ ok: false, text: err.message }));
+
+  return (
+    <section>
+      <h2>Linked accounts</h2>
+      <ul>
+        {linked.map((p) => (
+          <li key={p} className="cap">
+            {p} <button className="link" onClick={() => unlink(p)}>Unlink</button>
+          </li>
+        ))}
+      </ul>
+      {providers.filter((p) => !linked.includes(p)).map((p) => (
+        <OAuthButton key={p} provider={p} intent="link" returnTo="/" className="oauth">Link {p}</OAuthButton>
+      ))}
+      {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'ok' : 'err'}>{msg.text}</p>}
+    </section>
+  );
+}
+
 function Account() {
   const { user } = useSession();
   const { signOut } = useVoult();
-  const { providers } = useOAuthProviders();
-  const { linked, error } = getOAuthRedirectResult();
 
   return (
     <>
@@ -177,16 +224,7 @@ function Account() {
         <p>{user.email}</p>
         <button onClick={signOut}>Sign out</button>
       </section>
-      {providers.length > 0 && (
-        <section>
-          <h2>Linked accounts</h2>
-          {providers.map((p) => (
-            <OAuthButton key={p} provider={p} intent="link" returnTo="/" className="oauth">Link {p}</OAuthButton>
-          ))}
-          {linked && <p className="ok">Linked {linked}.</p>}
-          {error && <p role="alert" className="err">{error.description}</p>}
-        </section>
-      )}
+      <LinkedAccounts />
       <MfaSettings />
       <Sessions />
     </>
