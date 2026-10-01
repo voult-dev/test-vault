@@ -4,7 +4,7 @@
   "description": "",
   "scripts": {
     "start": "node --env-file=.env server.js",
-    "dev": "node --watch --env-file=.env server.js",
+    "dev": "nodemon --env-file=.env server.js",
     "doctor": "voult doctor --callback-url http://localhost:5174/api/auth/oauth/callback"
   },
   "keywords": [],
@@ -17,6 +17,7 @@
     "express": "^5.2.1"
   },
   "devDependencies": {
-    "@voult/cli": "^0.2.1"
+    "@voult/cli": "^0.2.1",
+    "nodemon": "^3.1.14"
   }
 }
