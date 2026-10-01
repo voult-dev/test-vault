@@ -24,4 +24,4 @@ app.use((err, req, res, next) => {
   res.status(status).json({ error: { code: err.apiCode || err.code, message: err.message, status } });
 });
 
-app.listen(3000, () => console.log('http://localhost:3000'));
+app.listen(4000, () => console.log('http://localhost:4000'));
