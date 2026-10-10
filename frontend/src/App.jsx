@@ -94,7 +94,7 @@ function MfaPrompt() {
   const { verifyMfa, signOut } = useVoult();
   const [run, note] = useSubmit();
   // Clears the pending cookie (OAuth) and the in-memory token (password); /logout 401s with no session yet.
-  const cancel = () => api('/api/mfa/cancel', { method: 'POST' }).finally(() => signOut().catch(() => {}));
+  const cancel = () => api('/api/auth/mfa/cancel', { method: 'POST' }).finally(() => signOut().catch(() => {}));
   return (
     <section>
       <h1>Two-factor authentication</h1>
@@ -121,7 +121,7 @@ function MfaSettings() {
       <h2>Two-factor authentication: {status.mfaEnabled ? 'on' : 'off'}</h2>
       {status.mfaEnabled ? (
         <form onSubmit={run(async (body) => {
-          await api('/api/mfa/disable', { method: 'POST', body });
+          await api('/api/auth/mfa/disable', { method: 'POST', body });
           await load();
           return 'MFA disabled.';
         })}>
@@ -136,7 +136,7 @@ function MfaSettings() {
           <p>Save these backup codes somewhere safe:</p>
           <pre>{setup.backupCodes.join('\n')}</pre>
           <form onSubmit={run(async ({ code }) => {
-            await api('/api/mfa/enable', { method: 'POST', body: { code: code.trim() } });
+            await api('/api/auth/mfa/enable', { method: 'POST', body: { code: code.trim() } });
             setSetup(null);
             await load();
             return 'MFA enabled.';
@@ -146,7 +146,7 @@ function MfaSettings() {
           </form>
         </>
       ) : (
-        <button onClick={() => api('/api/mfa/setup', { method: 'POST' }).then(setSetup)}>Set up MFA</button>
+        <button onClick={() => api('/api/auth/mfa/setup', { method: 'POST' }).then(setSetup)}>Set up MFA</button>
       )}
       {note}
     </section>
@@ -155,7 +155,7 @@ function MfaSettings() {
 
 function Sessions() {
   const [sessions, setSessions] = useState([]);
-  const load = () => api('/api/sessions').then((d) => setSessions(d.sessions)).catch(() => {});
+  const load = () => api('/api/auth/sessions').then((d) => setSessions(d.sessions)).catch(() => {});
   useEffect(() => { load(); }, []);
 
   return (
@@ -167,7 +167,7 @@ function Sessions() {
             {s.userAgent || s.deviceInfo || 'Unknown device'}
             {s.ipAddress && ` · ${s.ipAddress}`}
             {s.isCurrent ? ' (this device)' : (
-              <button className="link" onClick={() => api(`/api/sessions/${s.id}`, { method: 'DELETE' }).then(load)}>
+              <button className="link" onClick={() => api(`/api/auth/sessions/${s.id}`, { method: 'DELETE' }).then(load)}>
                 Revoke
               </button>
             )}
@@ -186,12 +186,12 @@ function LinkedAccounts() {
       : oauthResult.error ? { ok: false, text: oauthErrorMessage(oauthResult.error) } : null
   );
   // Voult returns provider names or { provider, … } objects depending on version.
-  const load = () => api('/api/oauth/linked')
+  const load = () => api('/api/auth/oauth/linked')
     .then((d) => setLinked(d.providers.map((p) => (typeof p === 'string' ? p : p.provider))))
     .catch(() => {});
   useEffect(() => { load(); }, []);
 
-  const unlink = (p) => api(`/api/oauth/linked/${p}`, { method: 'DELETE' })
+  const unlink = (p) => api(`/api/auth/oauth/linked/${p}`, { method: 'DELETE' })
     .then(() => { setMsg({ ok: true, text: `Unlinked ${p}.` }); load(); })
     .catch((err) => setMsg({ ok: false, text: err.message }));
 
